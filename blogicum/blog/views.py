@@ -149,8 +149,17 @@ def post_delete(request, post_id):
         return redirect('blog:post_detail', pk=post_id)
     if request.method == 'POST':
         post.delete()
-        return redirect('blog:profile', username=request.user.username)
-    return render(request, 'blog/create.html', {'form': PostForm(instance=post)})
+        return redirect(
+            'blog:profile',
+            username=request.user.username,
+        )
+    return render(
+        request,
+        'blog/create.html',
+        {
+            'form': PostForm(instance=post),
+        },
+    )
 
 
 @login_required
@@ -178,7 +187,11 @@ def comment_edit(request, post_id, comment_id):
     return render(
         request,
         'blog/comment.html',
-        {'form': form, 'post': post, 'comment': comment},
+        {
+            'form': form,
+            'post': post,
+            'comment': comment,
+        },
     )
 
 
@@ -194,7 +207,10 @@ def comment_delete(request, post_id, comment_id):
     return render(
         request,
         'blog/comment.html',
-        {'post': post, 'comment': comment},
+        {
+            'post': post,
+            'comment': comment,
+        },
     )
 
 
