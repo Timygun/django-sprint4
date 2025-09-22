@@ -27,7 +27,9 @@ def _paginate(request, queryset):
 
 
 def index(request):
-    qs = published_filter().select_related('author', 'category', 'location')
+    qs = published_filter().select_related(
+        'author', 'category', 'location'
+    )
     page_obj = _paginate(request, qs)
     context = {
         'page_obj': page_obj,
@@ -37,12 +39,12 @@ def index(request):
 
 
 def category_posts(request, slug):
-    category = get_object_or_404(Category, slug=slug, is_published=True)
-    qs = (
-        published_filter()
-        .filter(category=category)
-        .select_related('author', 'category', 'location')
+    category = get_object_or_404(
+        Category, slug=slug, is_published=True
     )
+    qs = published_filter().filter(
+        category=category
+    ).select_related('author', 'category', 'location')
     page_obj = _paginate(request, qs)
     context = {
         'category': category,
@@ -57,15 +59,11 @@ def profile(request, username):
     author = get_object_or_404(User, username=username)
     if request.user.is_authenticated and request.user == author:
         qs = Post.objects.filter(author=author).select_related(
-            'author',
-            'category',
-            'location',
+            'author', 'category', 'location'
         )
     else:
         qs = published_filter().filter(author=author).select_related(
-            'author',
-            'category',
-            'location',
+            'author', 'category', 'location'
         )
     page_obj = _paginate(request, qs)
     context = {
@@ -77,26 +75,24 @@ def profile(request, username):
 
 
 def post_detail(request, pk):
-    """Детальная: автор видит свой пост всегда; остальные — опубликованные."""
-    base_qs = Post.objects.select_related('author', 'category', 'location')
+    """Автор видит свой пост всегда; остальные — только опубликованные."""
+    base_qs = Post.objects.select_related(
+        'author', 'category', 'location'
+    )
     if request.user.is_authenticated:
         try:
             post = base_qs.get(pk=pk, author=request.user)
         except Post.DoesNotExist:
             post = get_object_or_404(
                 published_filter().select_related(
-                    'author',
-                    'category',
-                    'location',
+                    'author', 'category', 'location'
                 ),
                 pk=pk,
             )
     else:
         post = get_object_or_404(
             published_filter().select_related(
-                'author',
-                'category',
-                'location',
+                'author', 'category', 'location'
             ),
             pk=pk,
         )
@@ -117,8 +113,15 @@ def post_create(request):
         post = form.save(commit=False)
         post.author = request.user
         post.save()
-        return redirect('blog:profile', username=request.user.username)
-    return render(request, 'blog/create.html', {'form': form, 'is_edit': False})
+        return redirect(
+            'blog:profile',
+            username=request.user.username,
+        )
+    return render(
+        request,
+        'blog/create.html',
+        {'form': form, 'is_edit': False},
+    )
 
 
 @login_required
@@ -148,8 +151,15 @@ def post_delete(request, post_id):
         return redirect('blog:post_detail', pk=post_id)
     if request.method == 'POST':
         post.delete()
-        return redirect('blog:profile', username=request.user.username)
-    return render(request, 'blog/create.html', {'post': post, 'is_delete': True})
+        return redirect(
+            'blog:profile',
+            username=request.user.username,
+        )
+    return render(
+        request,
+        'blog/create.html',
+        {'post': post, 'is_delete': True},
+    )
 
 
 @login_required
