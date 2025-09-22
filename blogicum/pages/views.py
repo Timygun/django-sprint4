@@ -19,4 +19,9 @@ def server_error(request):
 
 
 def csrf_failure(request, reason=''):
-    return render(request, 'pages/403_csrf.html', {'reason': reason}, status=403)
+    return render(
+        request,
+        'pages/403_csrf.html',
+        {'reason': reason},
+        status=403,
+    )

@@ -83,7 +83,12 @@ class Post(TimePublishedMixin):
         blank=True,
         related_name='posts',
     )
-    image = models.ImageField(_('Изображение'), upload_to='posts/', blank=True, null=True)
+    image = models.ImageField(
+        _('Изображение'),
+        upload_to='posts/',
+        blank=True,
+        null=True,
+    )
 
     class Meta:
         verbose_name = _('публикация')
@@ -95,8 +100,18 @@ class Post(TimePublishedMixin):
 
 
 class Comment(models.Model):
-    post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='comments', verbose_name=_('Пост'))
-    author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='comments', verbose_name=_('Автор'))
+    post = models.ForeignKey(
+        Post,
+        on_delete=models.CASCADE,
+        related_name='comments',
+        verbose_name=_('Пост'),
+    )
+    author = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='comments',
+        verbose_name=_('Автор'),
+    )
     text = models.TextField(_('Комментарий'))
     created_at = models.DateTimeField(_('Создан'), auto_now_add=True)
 
