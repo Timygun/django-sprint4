@@ -1,6 +1,8 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.forms import UserChangeForm
 from django.core.paginator import Paginator
+from django.db.models import Count
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
@@ -27,8 +29,10 @@ def _paginate(request, queryset):
 
 
 def index(request):
-    qs = published_filter().select_related(
-        'author', 'category', 'location'
+    qs = (
+        published_filter()
+        .select_related('author', 'category', 'location')
+        .annotate(comment_count=Count('comments'))
     )
     page_obj = _paginate(request, qs)
     context = {
@@ -39,12 +43,13 @@ def index(request):
 
 
 def category_posts(request, slug):
-    category = get_object_or_404(
-        Category, slug=slug, is_published=True
+    category = get_object_or_404(Category, slug=slug, is_published=True)
+    qs = (
+        published_filter()
+        .filter(category=category)
+        .select_related('author', 'category', 'location')
+        .annotate(comment_count=Count('comments'))
     )
-    qs = published_filter().filter(
-        category=category
-    ).select_related('author', 'category', 'location')
     page_obj = _paginate(request, qs)
     context = {
         'category': category,
@@ -56,18 +61,23 @@ def category_posts(request, slug):
 
 def profile(request, username):
     User = get_user_model()
-    author = get_object_or_404(User, username=username)
-    if request.user.is_authenticated and request.user == author:
-        qs = Post.objects.filter(author=author).select_related(
-            'author', 'category', 'location'
+    user_obj = get_object_or_404(User, username=username)
+    if request.user.is_authenticated and request.user == user_obj:
+        qs = (
+            Post.objects.filter(author=user_obj)
+            .select_related('author', 'category', 'location')
+            .annotate(comment_count=Count('comments'))
         )
     else:
-        qs = published_filter().filter(author=author).select_related(
-            'author', 'category', 'location'
+        qs = (
+            published_filter()
+            .filter(author=user_obj)
+            .select_related('author', 'category', 'location')
+            .annotate(comment_count=Count('comments'))
         )
     page_obj = _paginate(request, qs)
     context = {
-        'author': author,
+        'profile': user_obj,
         'page_obj': page_obj,
         'post_list': page_obj.object_list,
     }
@@ -75,10 +85,11 @@ def profile(request, username):
 
 
 def post_detail(request, pk):
-    """Автор видит свой пост всегда; остальные — только опубликованные."""
-    base_qs = Post.objects.select_related(
-        'author', 'category', 'location'
-    )
+    """
+    Деталка: автор видит свой пост всегда; остальные — только опубликованные.
+    Внимание: шаблон — blog/details.html (во множественном числе).
+    """
+    base_qs = Post.objects.select_related('author', 'category', 'location')
     if request.user.is_authenticated:
         try:
             post = base_qs.get(pk=pk, author=request.user)
@@ -91,9 +102,7 @@ def post_detail(request, pk):
             )
     else:
         post = get_object_or_404(
-            published_filter().select_related(
-                'author', 'category', 'location'
-            ),
+            published_filter().select_related('author', 'category', 'location'),
             pk=pk,
         )
 
@@ -101,7 +110,7 @@ def post_detail(request, pk):
     comments = post.comments.select_related('author').all()
     return render(
         request,
-        'blog/detail.html',
+        'blog/details.html',
         {'post': post, 'form': form, 'comments': comments},
     )
 
@@ -113,15 +122,8 @@ def post_create(request):
         post = form.save(commit=False)
         post.author = request.user
         post.save()
-        return redirect(
-            'blog:profile',
-            username=request.user.username,
-        )
-    return render(
-        request,
-        'blog/create.html',
-        {'form': form, 'is_edit': False},
-    )
+        return redirect('blog:profile', username=request.user.username)
+    return render(request, 'blog/create.html', {'form': form})
 
 
 @login_required
@@ -137,11 +139,7 @@ def post_edit(request, post_id):
     if form.is_valid():
         form.save()
         return redirect('blog:post_detail', pk=post_id)
-    return render(
-        request,
-        'blog/create.html',
-        {'form': form, 'is_edit': True, 'post': post},
-    )
+    return render(request, 'blog/create.html', {'form': form})
 
 
 @login_required
@@ -151,15 +149,8 @@ def post_delete(request, post_id):
         return redirect('blog:post_detail', pk=post_id)
     if request.method == 'POST':
         post.delete()
-        return redirect(
-            'blog:profile',
-            username=request.user.username,
-        )
-    return render(
-        request,
-        'blog/create.html',
-        {'post': post, 'is_delete': True},
-    )
+        return redirect('blog:profile', username=request.user.username)
+    return render(request, 'blog/create.html', {'form': PostForm(instance=post)})
 
 
 @login_required
@@ -186,13 +177,8 @@ def comment_edit(request, post_id, comment_id):
         return redirect('blog:post_detail', pk=post_id)
     return render(
         request,
-        'blog/create.html',
-        {
-            'form': form,
-            'post': post,
-            'comment': comment,
-            'is_edit_comment': True,
-        },
+        'blog/comment.html',
+        {'form': form, 'post': post, 'comment': comment},
     )
 
 
@@ -207,6 +193,19 @@ def comment_delete(request, post_id, comment_id):
         return redirect('blog:post_detail', pk=post_id)
     return render(
         request,
-        'blog/create.html',
-        {'post': post, 'comment': comment, 'is_delete_comment': True},
+        'blog/comment.html',
+        {'post': post, 'comment': comment},
     )
+
+
+@login_required
+def edit_profile(request):
+    """
+    Страница редактирования профиля: blog/users.html.
+    В шаблоне ожидается просто {{ form }}.
+    """
+    form = UserChangeForm(request.POST or None, instance=request.user)
+    if form.is_valid():
+        form.save()
+        return redirect('blog:profile', username=request.user.username)
+    return render(request, 'blog/users.html', {'form': form})
