@@ -27,7 +27,7 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
-TEMPLATES_DIR = BASE_DIR / 'blogicum' / 'templates'
+TEMPLATES_DIR = BASE_DIR / 'templates'
 
 # Application definition
 
@@ -125,7 +125,7 @@ USE_TZ = True
 STATIC_URL = '/static/'
 
 STATICFILES_DIRS = [
-    BASE_DIR / 'blogicum' / 'static',
+    BASE_DIR / 'static',
 ]
 
 # Default primary key field type
