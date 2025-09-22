@@ -102,7 +102,9 @@ def post_detail(request, pk):
             )
     else:
         post = get_object_or_404(
-            published_filter().select_related('author', 'category', 'location'),
+            published_filter().select_related(
+                'author', 'category', 'location'
+                ),
             pk=pk,
         )
 
