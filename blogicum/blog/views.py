@@ -1,8 +1,7 @@
-# blogicum/blog/views.py
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
-from django.db.models import Count
 from django.core.paginator import Paginator
+from django.db.models import Count
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
@@ -36,8 +35,12 @@ def index(request):
     )
     page_obj = _paginate(request, qs)
     return render(
-        request, 'blog/index.html',
-        {'page_obj': page_obj, 'post_list': page_obj.object_list},
+        request,
+        'blog/index.html',
+        {
+            'page_obj': page_obj,
+            'post_list': page_obj.object_list,
+        },
     )
 
 
@@ -50,18 +53,20 @@ def category_posts(request, slug):
         .annotate(comment_count=Count('comments'))
     )
     page_obj = _paginate(request, qs)
-    context = {
-        'category': category,
-        'page_obj': page_obj,
-        'post_list': page_obj.object_list,
-    }
-    return render(request, 'blog/category.html', context)
+    return render(
+        request,
+        'blog/category.html',
+        {
+            'category': category,
+            'page_obj': page_obj,
+            'post_list': page_obj.object_list,
+        },
+    )
 
 
 def profile(request, username):
     User = get_user_model()
     profile_user = get_object_or_404(User, username=username)
-
     if request.user.is_authenticated and request.user == profile_user:
         qs = (
             Post.objects.filter(author=profile_user)
@@ -70,29 +75,40 @@ def profile(request, username):
         )
     else:
         qs = (
-            published_filter().filter(author=profile_user)
+            published_filter()
+            .filter(author=profile_user)
             .select_related('author', 'category', 'location')
             .annotate(comment_count=Count('comments'))
         )
     page_obj = _paginate(request, qs)
-    context = {
-        'profile': profile_user,
-        'page_obj': page_obj,
-        'post_list': page_obj.object_list,
-    }
-    return render(request, 'blog/profile.html', context)
+    return render(
+        request,
+        'blog/profile.html',
+        {
+            'profile': profile_user,
+            'page_obj': page_obj,
+            'post_list': page_obj.object_list,
+        },
+    )
 
 
 def post_detail(request, pk):
-    queryset = published_filter().select_related('author', 'category', 'location')
+    queryset = published_filter().select_related(
+        'author', 'category', 'location',
+    )
     if request.user.is_authenticated:
         queryset = queryset | Post.objects.filter(author=request.user)
     post = get_object_or_404(queryset, pk=pk)
     form = CommentForm() if request.user.is_authenticated else None
     comments = post.comments.select_related('author').all()
     return render(
-        request, 'blog/details.html',
-        {'post': post, 'form': form, 'comments': comments},
+        request,
+        'blog/details.html',
+        {
+            'post': post,
+            'form': form,
+            'comments': comments,
+        },
     )
 
 
@@ -104,7 +120,11 @@ def post_create(request):
         post.author = request.user
         post.save()
         return redirect('blog:profile', username=request.user.username)
-    return render(request, 'blog/create.html', {'form': form, 'is_edit': False})
+    return render(
+        request,
+        'blog/create.html',
+        {'form': form, 'is_edit': False},
+    )
 
 
 @login_required
@@ -112,11 +132,23 @@ def post_edit(request, post_id):
     post = get_object_or_404(Post, pk=post_id)
     if post.author != request.user:
         return redirect('blog:post_detail', pk=post_id)
-    form = PostForm(request.POST or None, files=request.FILES or None, instance=post)
+    form = PostForm(
+        request.POST or None,
+        files=request.FILES or None,
+        instance=post,
+    )
     if form.is_valid():
         form.save()
         return redirect('blog:post_detail', pk=post_id)
-    return render(request, 'blog/create.html', {'form': form, 'is_edit': True, 'post': post})
+    return render(
+        request,
+        'blog/create.html',
+        {
+            'form': form,
+            'is_edit': True,
+            'post': post,
+        },
+    )
 
 
 @login_required
@@ -127,7 +159,11 @@ def post_delete(request, post_id):
     if request.method == 'POST':
         post.delete()
         return redirect('blog:profile', username=request.user.username)
-    return render(request, 'blog/create.html', {'post': post, 'is_delete': True})
+    return render(
+        request,
+        'blog/create.html',
+        {'post': post, 'is_delete': True},
+    )
 
 
 @login_required
@@ -153,8 +189,13 @@ def comment_edit(request, post_id, comment_id):
         form.save()
         return redirect('blog:post_detail', pk=post_id)
     return render(
-        request, 'blog/comment.html',
-        {'form': form, 'post': post, 'comment': comment},
+        request,
+        'blog/comment.html',
+        {
+            'form': form,
+            'post': post,
+            'comment': comment,
+        },
     )
 
 
@@ -168,6 +209,7 @@ def comment_delete(request, post_id, comment_id):
         comment.delete()
         return redirect('blog:post_detail', pk=post_id)
     return render(
-        request, 'blog/comment.html',
+        request,
+        'blog/comment.html',
         {'post': post, 'comment': comment},
     )
