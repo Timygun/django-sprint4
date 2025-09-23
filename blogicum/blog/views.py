@@ -24,9 +24,9 @@ class PostDeleteView(PostsEditMixin, LoginRequiredMixin, DeleteView):
 
     def delete(self, request, *args, **kwargs):
         post = get_object_or_404(Post, pk=self.kwargs[self.pk_url_kwarg])
-        if self.request.user != post.author:
+        user = self.request.user
+        if not (user == post.author or user.is_staff or user.is_superuser):
             return redirect('blog:index')
-
         return super().delete(request, *args, **kwargs)
 
 
@@ -78,7 +78,8 @@ class CommentDeleteView(CommentEditMixin, LoginRequiredMixin, DeleteView):
 
     def delete(self, request, *args, **kwargs):
         comment = get_object_or_404(Comment, pk=self.kwargs[self.pk_url_kwarg])
-        if self.request.user != comment.author:
+        user = self.request.user
+        if not (user == comment.author or user.is_staff or user.is_superuser):
             return redirect('blog:post_detail', post_id=self.kwargs['post_id'])
         return super().delete(request, *args, **kwargs)
 
