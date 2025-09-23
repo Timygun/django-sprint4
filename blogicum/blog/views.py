@@ -19,15 +19,25 @@ PAGINATED_BY = 10
 
 class PostDeleteView(PostsEditMixin, LoginRequiredMixin, DeleteView):
     model = Post
-    success_url = reverse_lazy('blog:index')
     pk_url_kwarg = 'post_id'
+
+    def _can_manage(self, user, post):
+        return user == post.author or user.is_staff or user.is_superuser
+
+    def dispatch(self, request, *args, **kwargs):
+        post = get_object_or_404(Post, pk=self.kwargs[self.pk_url_kwarg])
+        if not self._can_manage(request.user, post):
+            return redirect('blog:post_detail', post_id=post.pk)
+        return super().dispatch(request, *args, **kwargs)
 
     def delete(self, request, *args, **kwargs):
         post = get_object_or_404(Post, pk=self.kwargs[self.pk_url_kwarg])
-        user = self.request.user
-        if not (user == post.author or user.is_staff or user.is_superuser):
-            return redirect('blog:index')
+        if not self._can_manage(request.user, post):
+            return redirect('blog:post_detail', post_id=post.pk)
         return super().delete(request, *args, **kwargs)
+
+    def get_success_url(self):
+        return reverse('blog:profile', args=[self.object.author.username])
 
 
 class PostUpdateView(PostsEditMixin, LoginRequiredMixin, UpdateView):
@@ -76,12 +86,23 @@ class CommentDeleteView(CommentEditMixin, LoginRequiredMixin, DeleteView):
     model = Comment
     pk_url_kwarg = 'comment_id'
 
+    def _can_manage(self, user, comment):
+        return user == comment.author or user.is_staff or user.is_superuser
+
+    def dispatch(self, request, *args, **kwargs):
+        comment = get_object_or_404(Comment, pk=self.kwargs[self.pk_url_kwarg])
+        if not self._can_manage(request.user, comment):
+            return redirect('blog:post_detail', post_id=self.kwargs['post_id'])
+        return super().dispatch(request, *args, **kwargs)
+
     def delete(self, request, *args, **kwargs):
         comment = get_object_or_404(Comment, pk=self.kwargs[self.pk_url_kwarg])
-        user = self.request.user
-        if not (user == comment.author or user.is_staff or user.is_superuser):
+        if not self._can_manage(request.user, comment):
             return redirect('blog:post_detail', post_id=self.kwargs['post_id'])
         return super().delete(request, *args, **kwargs)
+
+    def get_success_url(self):
+        return reverse('blog:post_detail', args=[self.kwargs['post_id']])
 
 
 class CommentUpdateView(CommentEditMixin, LoginRequiredMixin, UpdateView):
